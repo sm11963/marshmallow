@@ -1,6 +1,275 @@
 Changelog
 ---------
 
+3.0.0b3 (unreleaased)
++++++++++++++++++++++
+
+Features:
+
+- Add ``valid_data`` attribute to ``ValidationError``.
+
+Deprecations/Removals:
+
+- Deprecate ``json_module`` option in favor of ``render_module`` (:issue:`364`, :issue:`130`). Thanks :user:`justanr` for the suggestion.
+
+
+Bug fixes:
+
+- Includes bug fixes from release 2.13.5.
+
+3.0.0b2 (2017-03-19)
+++++++++++++++++++++
+
+Features:
+
+- Add ``truthy`` and ``falsy`` params to ``fields.Boolean`` (:issue:`580`). Thanks :user:`zwack` for the PR. Note: This is potentially a breaking change if your code passes the `default` parameter positionally. Pass `default` as a keyword argument instead, e.g. ``fields.Boolean(default=True)``.
+
+Other changes:
+
+- *Backwards-incompatible*: ``validate.ContainsOnly`` allows empty and duplicate values (:issue:`516`, :issue:`603`). Thanks :user:`maximkulkin` for the suggestion and thanks :user:`lafrech` for the PR.
+
+Bug fixes:
+
+- Includes bug fixes from release 2.13.4.
+
+3.0.0b1 (2017-03-10)
+++++++++++++++++++++
+
+Features:
+
+- ``fields.Nested`` respects ``only='field'`` when deserializing (:issue:`307`). Thanks :user:`erlingbo` for the suggestion and the PR.
+- ``fields.Boolean`` parses ``"on"``/``"off"`` (:issue:`580`). Thanks :user:`marcellarius` for the suggestion.
+
+
+Other changes:
+
+- Includes changes from release 2.13.2.
+- *Backwards-incompatible*: ``skip_on_field_errors`` defaults to ``True`` for ``validates_schema`` (:issue:`352`).
+
+
+3.0.0a1 (2017-02-26)
+++++++++++++++++++++
+
+Features:
+
+- ``dump_only`` and ``load_only`` for ``Function`` and ``Method`` are set based on ``serialize`` and ``deserialize`` arguments (:issue:`328`).
+
+Other changes:
+
+- *Backwards-incompatible*: ``fields.Method`` and ``fields.Function`` no longer swallow ``AttributeErrors`` (:issue:`395`). Thanks :user:`bereal` for the suggestion.
+- *Backwards-incompatible*: ``validators.Length`` is no longer a subclass of ``validators.Range`` (:issue:`458`). Thanks :user:`deckar01` for the catch and patch.
+- *Backwards-incompatible*: ``utils.get_func_args`` no longer returns bound arguments. This is consistent with the behavior of ``inspect.signature``. This change prevents a DeprecationWarning on Python 3.5 (:issue:`415`, :issue:`479`). Thanks :user:`deckar01` for the PR.
+- *Backwards-incompatible*: Change the signature of ``utils.get_value`` and ``Schema.get_attribute`` for consistency with Python builtins (e.g. ``getattr``) (:issue:`341`). Thanks :user:`stas` for reporting and thanks :user:`deckar01` for the PR.
+- *Backwards-incompatible*: Don't unconditionally call callable attributes (:issue:`430`, reverts :issue:`242`). Thanks :user:`mirko` for the suggestion.
+- Drop support for Python 2.6 and 3.3.
+
+Deprecation/Removals:
+
+- Remove ``__error_handler__``, ``__accessor__``, ``@Schema.error_handler``, and ``@Schema.accessor``. Override ``Schema.handle_error`` and ``Schema.get_attribute`` instead.
+- Remove ``func`` parameter of ``fields.Function``. Remove ``method_name`` parameter of ``fields.Method`` (issue:`325`). Use the ``serialize`` parameter instead.
+- Remove ``extra`` parameter from ``Schema``. Use a ``@post_dump`` method to add additional data.
+
+2.13.5 (2017-04-12)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix validation of iso8601-formatted dates (:issue:`556`). Thanks :user:`lafrech` for reporting.
+
+2.13.4 (2017-03-19)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix symmetry of serialization and deserialization behavior when passing a dot-delimited path to the ``attribute`` parameter of fields (:issue:`450`). Thanks :user:`itajaja` for reporting.
+
+2.13.3 (2017-03-11)
++++++++++++++++++++
+
+Bug fixes:
+
+- Restore backwards-compatibility of ``SchemaOpts`` constructor (:issue:`597`). Thanks :user:`Wesmania` for reporting and thanks :user:`frol` for the fix.
+
+2.13.2 (2017-03-10)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix inheritance of ``ordered`` option when ``Schema`` subclasses define ``class Meta`` (:issue:`593`). Thanks :user:`frol`.
+
+Support:
+
+- Update contributing docs.
+
+2.13.1 (2017-03-04)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix sorting on Schema subclasses when ``ordered=True`` (:issue:`592`). Thanks :user:`frol`.
+
+2.13.0 (2017-02-18)
++++++++++++++++++++
+
+Features:
+
+- Minor optimizations (:issue:`577`). Thanks :user:`rowillia` for the PR.
+
+2.12.2 (2017-01-30)
++++++++++++++++++++
+
+Bug fixes:
+
+- Unbound fields return `None` rather returning the field itself. This fixes a corner case introduced in :issue:`572`. Thanks :user:`touilleMan` for reporting and :user:`YuriHeupa` for the fix.
+
+2.12.1 (2017-01-23)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix behavior when a ``Nested`` field is composed within a ``List`` field (:issue:`572`). Thanks :user:`avish` for reporting and :user:`YuriHeupa` for the PR.
+
+2.12.0 (2017-01-22)
++++++++++++++++++++
+
+Features:
+
+- Allow passing nested attributes (e.g. ``'child.field'``) to the ``dump_only`` and ``load_only`` parameters of ``Schema`` (:issue:`572`). Thanks :user:`YuriHeupa` for the PR.
+- Add ``schemes`` parameter to ``fields.URL`` (:issue:`574`). Thanks :user:`mosquito` for the PR.
+
+2.11.1 (2017-01-08)
++++++++++++++++++++
+
+Bug fixes:
+
+- Allow ``strict`` class Meta option to be overriden by constructor (:issue:`550`). Thanks :user:`douglas-treadwell` for reporting and thanks :user:`podhmo` for the PR.
+
+2.11.0 (2017-01-08)
++++++++++++++++++++
+
+Features:
+
+- Import ``marshmallow.fields`` in ``marshmallow/__init__.py`` to save an import when importing the ``marshmallow`` module (:issue:`557`). Thanks :user:`mindojo-victor`.
+
+Support:
+
+- Documentation: Improve example in "Validating Original Input Data" (:issue:`558`). Thanks :user:`altaurog`.
+- Test against Python 3.6.
+
+2.10.5 (2016-12-19)
++++++++++++++++++++
+
+Bug fixes:
+
+- Reset user-defined kwargs passed to ``ValidationError`` on each ``Schema.load`` call (:issue:`565`). Thanks :user:`jbasko` for the catch and patch.
+
+Support:
+
+- Tests: Fix redefinition of ``test_utils.test_get_value()`` (:issue:`562`). Thanks :user:`nelfin`.
+
+2.10.4 (2016-11-18)
++++++++++++++++++++
+
+Bug fixes:
+
+- `Function` field works with callables that use Python 3 type annotations (:issue:`540`). Thanks :user:`martinstein` for reporting and thanks :user:`sabinem`, :user:`lafrech`, and :user:`maximkulkin` for the work on the PR.
+
+2.10.3 (2016-10-02)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix behavior for serializing missing data with ``Number`` fields when ``as_string=True`` is passed (:issue:`538`). Thanks :user:`jessemyers` for reporting.
+
+2.10.2 (2016-09-25)
++++++++++++++++++++
+
+Bug fixes:
+
+- Use fixed-point notation rather than engineering notation when serializing with ``Decimal`` (:issue:`534`). Thanks :user:`gdub`.
+- Fix UUID validation on serialization and deserialization of ``uuid.UUID`` objects (:issue:`532`). Thanks :user:`pauljz`.
+
+2.10.1 (2016-09-14)
++++++++++++++++++++
+
+Bug fixes:
+
+- Fix behavior when using ``validate.Equal(False)`` (:issue:`484`). Thanks :user:`pktangyue` for reporting and thanks :user:`tuukkamustonen` for the fix.
+- Fix ``strict`` behavior when errors are raised in ``pre_dump``/``post_dump`` processors (:issue:`521`). Thanks :user:`tvuotila` for the catch and patch.
+- Fix validation of nested fields on dumping (:issue:`528`). Thanks again :user:`tvuotila`.
+
+2.10.0 (2016-09-05)
++++++++++++++++++++
+
+Features:
+
+- Errors raised by pre/post-load/dump methods will be added to a schema's errors dictionary (:issue:`472`). Thanks :user:`dbertouille` for the suggestion and for the PR.
+
+2.9.1 (2016-07-21)
+++++++++++++++++++
+
+Bug fixes:
+
+- Fix serialization of ``datetime.time`` objects with microseconds (:issue:`464`). Thanks :user:`Tim-Erwin` for reporting and thanks :user:`vuonghv` for the fix.
+- Make ``@validates`` consistent with field validator behavior: if validation fails, the field will not be included in the deserialized output (:issue:`391`). Thanks :user:`martinstein` for reporting and thanks :user:`vuonghv` for the fix.
+
+2.9.0 (2016-07-06)
+++++++++++++++++++
+
+- ``Decimal`` field coerces input values to a string before deserializing to a `decimal.Decimal` object in order to avoid transformation of float values under 12 significant digits (:issue:`434`, :issue:`435`). Thanks :user:`davidthornton` for the PR.
+
+2.8.0 (2016-06-23)
+++++++++++++++++++
+
+Features:
+
+- Allow ``only`` and ``exclude`` parameters to take nested fields, using dot-delimited syntax (e.g. ``only=['blog.author.email']``) (:issue:`402`). Thanks :user:`Tim-Erwin` and :user:`deckar01` for the discussion and implementation.
+
+Support:
+
+- Update tasks.py for compatibility with invoke>=0.13.0. Thanks :user:`deckar01`.
+
+2.7.3 (2016-05-05)
+++++++++++++++++++
+
+- Make ``field.parent`` and ``field.name`` accessible to ``on_bind_field`` (:issue:`449`). Thanks :user:`immerrr`.
+
+2.7.2 (2016-04-27)
+++++++++++++++++++
+
+No code changes in this release. This is a reupload in order to distribute an sdist for the last hotfix release. See :issue:`443`.
+
+Support:
+
+- Update license entry in setup.py to fix RPM distributions (:issue:`433`). Thanks :user:`rrajaravi` for reporting.
+
+2.7.1 (2016-04-08)
+++++++++++++++++++
+
+Bug fixes:
+
+- Only add Schemas to class registry if a class name is provided. This allows Schemas to be
+  constructed dynamically using the ``type`` constructor without getting added to the class registry (which is useful for saving memory).
+
+2.7.0 (2016-04-04)
+++++++++++++++++++
+
+Features:
+
+- Make context available to ``Nested`` field's ``on_bind_field`` method (:issue:`408`). Thanks :user:`immerrr` for the PR.
+- Pass through user ``ValidationError`` kwargs (:issue:`418`). Thanks :user:`russelldavies` for helping implement this.
+
+Other changes:
+
+- Remove unused attributes ``root``, ``parent``, and ``name`` from ``SchemaABC`` (:issue:`410`). Thanks :user:`Tim-Erwin` for the PR.
+
+2.6.1 (2016-03-17)
+++++++++++++++++++
+
+Bug fixes:
+
+- Respect `load_from` when reporting errors for nested required fields (:issue:`414`). Thanks :user:`yumike`.
+
 2.6.0 (2016-02-01)
 ++++++++++++++++++
 

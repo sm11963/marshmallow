@@ -19,7 +19,8 @@ class ValidationError(MarshmallowError):
     :param list fields: `Field` objects to which the error applies.
     """
 
-    def __init__(self, message, field_names=None, fields=None, data=None, **kwargs):
+    def __init__(self, message, field_names=None, fields=None,
+                 data=None, valid_data=None, **kwargs):
         if not isinstance(message, dict) and not isinstance(message, list):
             messages = [message]
         else:
@@ -35,11 +36,19 @@ class ValidationError(MarshmallowError):
             self.field_names = [field_names]
         else:  # fields is a list or None
             self.field_names = field_names or []
-        # Store nested data
+        #: The raw input data.
         self.data = data
+        #: The valid, (de)serialized data.
+        self.valid_data = valid_data
         self.kwargs = kwargs
         MarshmallowError.__init__(self, message)
 
+    def normalized_messages(self, no_field_name="_schema"):
+        if isinstance(self.messages, dict):
+            return self.messages
+        if len(self.field_names) == 0:
+            return {no_field_name: self.messages}
+        return dict((name, self.messages) for name in self.field_names)
 
 class RegistryError(NameError):
     """Raised when an invalid operation is performed on the serializer

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 import itertools
+import functools
+import inspect
 
 PY2 = int(sys.version_info[0]) == 2
-PY26 = PY2 and int(sys.version_info[1]) < 7
 
 if PY2:
     import urlparse
@@ -17,11 +18,6 @@ if PY2:
     itervalues = lambda d: d.itervalues()
     iteritems = lambda d: d.iteritems()
     zip_longest = itertools.izip_longest
-    if PY26:
-        from .ordereddict import OrderedDict
-    else:
-        from collections import OrderedDict
-    OrderedDict = OrderedDict
 else:
     import urllib.parse
     urlparse = urllib.parse
@@ -34,9 +30,6 @@ else:
     itervalues = lambda d: d.values()
     iteritems = lambda d: d.items()
     zip_longest = itertools.zip_longest
-    from collections import OrderedDict
-    OrderedDict = OrderedDict
-
 
 # From six
 def with_metaclass(meta, *bases):

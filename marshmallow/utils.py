@@ -3,10 +3,11 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
-import datetime
 import functools
+import datetime
 import inspect
 import json
+import re
 import time
 import types
 from calendar import timegm
@@ -14,7 +15,7 @@ from decimal import Decimal, ROUND_HALF_EVEN, Context, Inexact
 from email.utils import formatdate, parsedate
 from pprint import pprint as py_pprint
 
-from marshmallow.compat import OrderedDict, binary_type, text_type
+from marshmallow.compat import binary_type, text_type
 
 
 dateutil_available = False
@@ -126,7 +127,7 @@ def pprint(obj, *args, **kwargs):
     like regular dictionaries. Useful for printing the output of
     :meth:`marshmallow.Schema.dump`.
     """
-    if isinstance(obj, OrderedDict):
+    if isinstance(obj, collections.OrderedDict):
         print(json.dumps(obj, *args, **kwargs))
     else:
         py_pprint(obj, *args, **kwargs)
@@ -210,6 +211,14 @@ def rfcformat(dt, localtime=False):
     else:
         return local_rfcformat(dt)
 
+# From Django
+_iso8601_re = re.compile(
+    r'(?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})'
+    r'[T ](?P<hour>\d{1,2}):(?P<minute>\d{1,2})'
+    r'(?::(?P<second>\d{1,2})(?:\.(?P<microsecond>\d{1,6})\d{0,6})?)?'
+    r'(?P<tzinfo>Z|[+-]\d{2}(?::?\d{2})?)?$'
+)
+
 
 def isoformat(dt, localtime=False, *args, **kwargs):
     """Return the ISO8601-formatted UTC representation of a datetime object.
@@ -254,6 +263,8 @@ def from_iso(datestring, use_dateutil=True):
 
     Use dateutil's parser if possible and return a timezone-aware datetime.
     """
+    if not _iso8601_re.match(datestring):
+        raise ValueError('Not a valid ISO8601-formatted datetime string')
     # Use dateutil's parser if possible
     if dateutil_available and use_dateutil:
         return parser.parse(datestring)
@@ -298,33 +309,55 @@ def pluck(dictlist, key):
 
 # Various utilities for pulling keyed values from objects
 
-def get_value(key, obj, default=missing):
+def get_value(obj, key, default=missing):
     """Helper for pulling a keyed value off various types of objects"""
     if isinstance(key, int):
-        return _get_value_for_key(key, obj, default)
+        return _get_value_for_key(obj, key, default)
     else:
-        return _get_value_for_keys(key.split('.'), obj, default)
+        return _get_value_for_keys(obj, key.split('.'), default)
 
 
-def _get_value_for_keys(keys, obj, default):
+def _get_value_for_keys(obj, keys, default):
     if len(keys) == 1:
-        return _get_value_for_key(keys[0], obj, default)
+        return _get_value_for_key(obj, keys[0], default)
     else:
         return _get_value_for_keys(
-            keys[1:], _get_value_for_key(keys[0], obj, default), default)
+            _get_value_for_key(obj, keys[0], default), keys[1:], default)
 
 
-def _get_value_for_key(key, obj, default):
+def _get_value_for_key(obj, key, default):
     try:
         return obj[key]
     except (KeyError, AttributeError, IndexError, TypeError):
         try:
-            attr = getattr(obj, key)
-            return attr() if callable(attr) else attr
+            return getattr(obj, key)
         except AttributeError:
             return default
     return default
 
+
+def set_value(dct, key, value):
+    """Set a value in a dict. If `key` contains a '.', it is assumed
+    be a path (i.e. dot-delimited string) to the value's location.
+
+    ::
+
+        >>> d = {}
+        >>> set_value(d, 'foo.bar', 42)
+        >>> d
+        {'foo': {'bar': 42}}
+    """
+    if '.' in key:
+        head, rest = key.split('.', 1)
+        target = dct.setdefault(head, {})
+        if not isinstance(target, dict):
+            raise ValueError(
+                'Cannot set {key} in {head} '
+                'due to existing value: {target}'.format(key=key, head=head, target=target)
+            )
+        set_value(target, rest, value)
+    else:
+        dct[key] = value
 
 def callable_or_raise(obj):
     """Check that an object is callable, else raise a :exc:`ValueError`.
@@ -334,16 +367,29 @@ def callable_or_raise(obj):
     return obj
 
 
+def _signature(func):
+    if hasattr(inspect, 'signature'):
+        return list(inspect.signature(func).parameters.keys())
+    if hasattr(func, '__self__'):
+        # Remove bound arg to match inspect.signature()
+        return inspect.getargspec(func).args[1:]
+    # All args are unbound
+    return inspect.getargspec(func).args
+
+
 def get_func_args(func):
     """Given a callable, return a tuple of argument names. Handles
     `functools.partial` objects and class-based callables.
+
+    .. versionchanged:: 3.0.0a1
+        Do not return bound arguments, eg. ``self``.
     """
     if isinstance(func, functools.partial):
-        return inspect.getargspec(func.func).args
+        return _signature(func.func)
     if inspect.isfunction(func) or inspect.ismethod(func):
-        return inspect.getargspec(func).args
+        return _signature(func)
     # Callable class
-    return inspect.getargspec(func.__call__).args
+    return _signature(func.__call__)
 
 
 def if_none(value, default):

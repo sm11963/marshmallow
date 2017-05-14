@@ -7,18 +7,20 @@ from marshmallow.schema import (
     MarshalResult,
     UnmarshalResult,
 )
+from . import fields
 from marshmallow.decorators import (
     pre_dump, post_dump, pre_load, post_load, validates, validates_schema
 )
 from marshmallow.utils import pprint, missing
 from marshmallow.exceptions import ValidationError
 
-__version__ = '2.6.0'
+__version__ = '3.0.0b3.dev0'
 __author__ = 'Steven Loria'
 
 __all__ = [
     'Schema',
     'SchemaOpts',
+    'fields',
     'validates',
     'validates_schema',
     'pre_dump',

@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """Tests for field serialization."""
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import datetime as dt
 import itertools
 import decimal
+import uuid
 
 import pytest
 
 from marshmallow import Schema, fields, utils
 from marshmallow.exceptions import ValidationError
-from marshmallow.compat import basestring, OrderedDict
+from marshmallow.compat import basestring
 from marshmallow.utils import missing as missing_
 
 from tests.base import User, ALL_FIELDS
@@ -61,12 +62,32 @@ class TestFieldSerialization:
         field = fields.Function(lambda obj: obj.name.upper())
         assert "FOO" == field.serialize("key", user)
 
+    def test_function_field_passed_serialize_only_is_dump_only(self, user):
+        field = fields.Function(serialize=lambda obj: obj.name.upper())
+        assert field.dump_only is True
+
+    def test_function_field_passed_deserialize_and_serialize_is_not_dump_only(self):
+        field = fields.Function(
+            serialize=lambda val: val.lower(),
+            deserialize=lambda val: val.upper()
+        )
+        assert field.dump_only is False
+
     def test_function_field_passed_serialize(self, user):
         field = fields.Function(serialize=lambda obj: obj.name.upper())
         assert "FOO" == field.serialize("key", user)
 
-    def test_function_field_passed_func_is_deprecated(self):
-        pytest.deprecated_call(lambda: fields.Function(func=lambda obj: obj.name.upper()))
+    # https://github.com/marshmallow-code/marshmallow/issues/395
+    def test_function_field_does_not_swallow_attribute_error(self, user):
+        def raise_error(obj):
+            raise AttributeError()
+        field = fields.Function(serialize=raise_error)
+        with pytest.raises(AttributeError):
+            field.serialize('key', user)
+
+    def test_function_field_load_only(self):
+        field = fields.Function(deserialize=lambda obj: None)
+        assert field.load_only
 
     def test_function_field_passed_serialize_with_context(self, user, monkeypatch):
         class Parent(Schema):
@@ -101,9 +122,26 @@ class TestFieldSerialization:
         field = fields.Integer(default=None)
         assert field.serialize('age', user) is None
 
-    def test_callable_field(self, user):
-       field = fields.String()
-       assert field.serialize('call_me', user) == 'This was called.'
+    def test_uuid_field(self, user):
+        user.uuid1 = '{12345678-1234-5678-1234-567812345678}'
+        user.uuid2 = uuid.UUID('12345678123456781234567812345678')
+        user.uuid3 = None
+        user.uuid4 = 'this is not a UUID'
+        user.uuid5 = 42
+        user.uuid6 = {}
+
+        field = fields.UUID()
+        assert isinstance(field.serialize('uuid1', user), str)
+        assert field.serialize('uuid1', user) == '12345678-1234-5678-1234-567812345678'
+        assert isinstance(field.serialize('uuid2', user), str)
+        assert field.serialize('uuid2', user) == '12345678-1234-5678-1234-567812345678'
+        assert field.serialize('uuid3', user) is None
+        with pytest.raises(ValidationError):
+            field.serialize('uuid4', user)
+        with pytest.raises(ValidationError):
+            field.serialize('uuid5', user)
+        with pytest.raises(ValidationError):
+            field.serialize('uuid6', user)
 
     def test_decimal_field(self, user):
         user.m1 = 12
@@ -238,6 +276,20 @@ class TestFieldSerialization:
         assert isinstance(m7s, decimal.Decimal)
         assert m7s.is_zero() and m7s.is_signed()
 
+        field = fields.Decimal(as_string=True, allow_nan=True)
+
+        m2s = field.serialize('m2', user)
+        assert isinstance(m2s, basestring)
+        assert m2s == user.m2
+
+        m5s = field.serialize('m5', user)
+        assert isinstance(m5s, basestring)
+        assert m5s == user.m5
+
+        m6s = field.serialize('m6', user)
+        assert isinstance(m6s, basestring)
+        assert m6s == user.m6
+
     def test_decimal_field_special_values_not_permitted(self, user):
         user.m1 = '-NaN'
         user.m2 = 'NaN'
@@ -266,6 +318,28 @@ class TestFieldSerialization:
         assert isinstance(m7s, decimal.Decimal)
         assert m7s.is_zero() and m7s.is_signed()
 
+    def test_decimal_field_fixed_point_representation(self, user):
+        """
+        Test we get fixed-point string representation for a Decimal number that would normally
+        output in engineering notation.
+        """
+        user.m1 = '0.00000000100000000'
+
+        field = fields.Decimal()
+        s = field.serialize('m1', user)
+        assert isinstance(s, decimal.Decimal)
+        assert s == decimal.Decimal('1.00000000E-9')
+
+        field = fields.Decimal(as_string=True)
+        s = field.serialize('m1', user)
+        assert isinstance(s, basestring)
+        assert s == user.m1
+
+        field = fields.Decimal(as_string=True, places=2)
+        s = field.serialize('m1', user)
+        assert isinstance(s, basestring)
+        assert s == '0.00'
+
     def test_boolean_field_serialization(self, user):
         field = fields.Boolean()
 
@@ -273,9 +347,9 @@ class TestFieldSerialization:
         user.falsy = 'false'
         user.none = None
 
-        assert field.serialize('truthy', user) == True
-        assert field.serialize('falsy', user) == False
-        assert field.serialize('none', user) == None
+        assert field.serialize('truthy', user) is True
+        assert field.serialize('falsy', user) is False
+        assert field.serialize('none', user) is None
 
     def test_function_with_uncallable_param(self):
         with pytest.raises(ValueError):
@@ -332,6 +406,16 @@ class TestFieldSerialization:
         with pytest.raises(ValueError):
             BadSerializer().dump(u)
 
+    def test_method_field_passed_serialize_only_is_dump_only(self, user):
+        field = fields.Method(serialize='method')
+        assert field.dump_only is True
+        assert field.load_only is False
+
+    def test_method_field_passed_deserialize_only_is_load_only(self):
+        field = fields.Method(deserialize='somemethod')
+        assert field.load_only is True
+        assert field.dump_only is False
+
     def test_method_field_with_uncallable_attribute(self):
         class BadSerializer(Schema):
             foo = 'not callable'
@@ -340,9 +424,16 @@ class TestFieldSerialization:
         with pytest.raises(ValueError):
             BadSerializer().dump(u)
 
-    def test_method_prefers_serialize_over_method_name(self):
-        m = fields.Method(serialize='serialize', method_name='method')
-        assert m.serialize_method_name == 'serialize'
+    # https://github.com/marshmallow-code/marshmallow/issues/395
+    def test_method_field_does_not_swallow_attribute_error(self):
+        class MySchema(Schema):
+            mfield = fields.Method('raise_error')
+
+            def raise_error(self, obj):
+                raise AttributeError()
+
+        with pytest.raises(AttributeError):
+            MySchema().dump({})
 
     def test_method_with_no_serialize_is_missing(self):
         m = fields.Method()
@@ -454,7 +545,7 @@ class TestFieldSerialization:
 
     def test_time_field(self, user):
         field = fields.Time()
-        expected = user.time_registered.isoformat()[:12]
+        expected = user.time_registered.isoformat()[:15]
         assert field.serialize('time_registered', user) == expected
 
         user.time_registered = None
@@ -604,9 +695,9 @@ class TestFieldSerialization:
         with pytest.raises(ValidationError):
             field.serialize('dtimes', obj)
 
-    def test_list_field_work_with_generators_empty_generator_returns_none_for_every_non_returning_yield_statement(self):
+    def test_list_field_work_with_generators_empty_generator_returns_none_for_every_non_returning_yield_statement(self):  # noqa
         def custom_generator():
-            a = yield
+            yield
             yield
         obj = DateTimeList(custom_generator())
         field = fields.List(fields.DateTime, allow_none=True)
